@@ -1,0 +1,7 @@
+<launch>
+  <!-- Start the soundplay node -->
+  <node name="soundplay_node" pkg="sound_play" type="soundplay_node.py"/>
+  
+  <!-- Start the jupiter_study node -->
+  <node name="jupiter_study_buddy_node" pkg="jupiter_study" type="study_buddy_node.py" output="screen"/>
+</launch>
