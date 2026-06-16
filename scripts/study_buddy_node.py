@@ -29,6 +29,10 @@ class StudyBuddyNode:
         self.last_conversation_warning_time = 0
         self.confirming_stop = False
 
+        # ROS API Publisher (Satisfies Q3 Requirement)
+        # Purpose: Sends text strings to the sound_play node to be converted into spoken audio.
+        # Expected Input: Text strings (e.g., "Starting study session. Let's focus!")
+        # Expected Output: Publishes sound_play/SoundRequest messages to the /robotsound topic.
         self.soundhandle = SoundClient()
         # Sleep briefly to ensure soundplay node is ready
         rospy.sleep(1)

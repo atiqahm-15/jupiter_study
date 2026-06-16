@@ -50,7 +50,10 @@ class VisionModule:
             self.hands = None
             self.face_mesh = None
             
-        # Subscribe to camera image
+        # ROS API Subscriber (Satisfies Q3 Requirement)
+        # Purpose: Receives real-time video frames from the USB camera for AI processing.
+        # Expected Input: sensor_msgs/Image (Raw image data from the webcam)
+        # Expected Output: Triggers image_callback to run YOLO & MediaPipe for feature extraction.
         self.image_sub = rospy.Subscriber('/usb_cam/image_raw', Image, self.image_callback)
         
         # State tracking to avoid spamming
@@ -59,6 +62,7 @@ class VisionModule:
         self.missing_frames = 0
         self.phone_detected = False
         self.frames_since_last_phone = 0
+        self.missing_phone_frames = 0
         
         # Conversation tracking
         self.conversation_detected = False
@@ -127,7 +131,7 @@ class VisionModule:
                     
                     if cls == 0 and conf > 0.5:
                         person_found = True
-                    if cls == 67 and conf > 0.3:
+                    if cls == 67 and conf > 0.25:
                         phone_found = True
 
         # Process Person Presence
@@ -148,13 +152,18 @@ class VisionModule:
             
         # Process Phone Distraction
         if phone_found:
-            self.frames_since_last_phone += 1
-            if self.frames_since_last_phone > 10 and not self.phone_detected:
-                self.phone_detected = True
-                self.detection_callback("PHONE_DETECTED")
+            self.missing_phone_frames = 0
+            if not self.phone_detected:
+                self.frames_since_last_phone += 1
+                if self.frames_since_last_phone > 5:
+                    self.phone_detected = True
+                    self.detection_callback("PHONE_DETECTED")
         else:
             self.frames_since_last_phone = 0
-            self.phone_detected = False
+            if self.phone_detected:
+                self.missing_phone_frames += 1
+                if self.missing_phone_frames > 15:
+                    self.phone_detected = False
 
         # 2. Run MediaPipe for Gestures and Face Mesh
         if self.hands is not None or self.face_mesh is not None:
