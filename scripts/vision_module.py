@@ -64,6 +64,11 @@ class VisionModule:
         self.frames_since_last_phone = 0
         self.missing_phone_frames = 0
         
+        # Frame processing optimization
+        self.frame_count = 0
+        self.last_person_found = False
+        self.last_phone_found = False
+        
         # Conversation tracking
         self.conversation_detected = False
         self.conversation_start_time = None
@@ -72,7 +77,7 @@ class VisionModule:
         # Gesture tracking
         self.gesture_frames = 0
         self.current_gesture = None
-        self.required_gesture_frames = 15 # Require ~15 consecutive frames for a gesture to register
+        self.required_gesture_frames = 5 # Reduced from 15 to register faster
 
     def calculate_distance(self, p1, p2):
         return math.hypot(p2.x - p1.x, p2.y - p1.y)
@@ -117,11 +122,15 @@ class VisionModule:
             rospy.logerr(e)
             return
 
-        person_found = False
-        phone_found = False
+        self.frame_count += 1
 
-        # 1. Run YOLO for Person and Phone
-        if self.model is not None:
+        person_found = self.last_person_found
+        phone_found = self.last_phone_found
+
+        # 1. Run YOLO for Person and Phone (every 5 frames to save CPU)
+        if self.model is not None and self.frame_count % 5 == 0:
+            person_found = False
+            phone_found = False
             results = self.model(cv_image, verbose=False)
             for r in results:
                 boxes = r.boxes
@@ -133,6 +142,8 @@ class VisionModule:
                         person_found = True
                     if cls == 67 and conf > 0.25:
                         phone_found = True
+            self.last_person_found = person_found
+            self.last_phone_found = phone_found
 
         # Process Person Presence
         if person_found:
@@ -170,7 +181,7 @@ class VisionModule:
             # MediaPipe expects RGB
             img_rgb = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
             
-        if self.face_mesh is not None:
+        if self.face_mesh is not None and self.frame_count % 3 == 0:
             results_face = self.face_mesh.process(img_rgb)
             
             is_talking = False
